@@ -48,10 +48,23 @@ struct param_ref
     /// Bind a string.
     param_ref(string_view text) : impl_(text) { }
 
+    /// Bind an lvalue string-like object (stores view, non-owning)
     template<typename StringLike>
     param_ref(StringLike && text,
-              typename std::enable_if<std::is_constructible<string_view, StringLike>::value>::type * = nullptr)
+              typename std::enable_if<
+                  std::is_constructible<string_view, StringLike>::value &&
+                  std::is_lvalue_reference<StringLike&&>::value
+              >::type * = nullptr)
             : impl_(variant2::in_place_type_t<string_view>{}, text) {}
+
+    /// Bind an rvalue string-like object (stores owned copy to avoid dangling reference)
+    template<typename StringLike>
+    param_ref(StringLike && text,
+              typename std::enable_if<
+                  std::is_constructible<string_view, StringLike>::value &&
+                  !std::is_lvalue_reference<StringLike&&>::value
+              >::type * = nullptr)
+            : impl_(variant2::in_place_type_t<std::string>{}, std::forward<StringLike>(text)) {}
 
     template<typename BlobLike>
     param_ref(BlobLike && text,
@@ -164,6 +177,14 @@ struct param_ref
         else
           return sqlite3_bind_text(stmt, col, text.data(), static_cast<int>(text.size()), SQLITE_STATIC);
       }
+      int operator()(const std::string& text)
+      {
+        // Use SQLITE_TRANSIENT since the string is owned by param_ref which may be temporary
+        if (text.size() > std::numeric_limits<int>::max())
+          return sqlite3_bind_text64(stmt, col, text.data(), text.size(), SQLITE_TRANSIENT, SQLITE_UTF8);
+        else
+          return sqlite3_bind_text(stmt, col, text.data(), static_cast<int>(text.size()), SQLITE_TRANSIENT);
+      }
       int operator()(double value)
       {
         return sqlite3_bind_double(stmt, col, value);
@@ -186,7 +207,8 @@ struct param_ref
 
     mutable // so we can use it with
     variant2::variant<variant2::monostate, int, sqlite3_int64,
-                      blob_view, string_view, double, zero_blob
+                      blob_view, string_view, double, zero_blob,
+                      std::string  // owned string for temporaries
 #if SQLITE_VERSION_NUMBER >= 3020000
                       , std::pair<std::unique_ptr<void, void(*)(void*)>, const char*>
 #endif
