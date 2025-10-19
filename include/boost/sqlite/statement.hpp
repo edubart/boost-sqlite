@@ -82,22 +82,24 @@ struct param_ref
     /// Bind pointer value to the parameter. @see https://www.sqlite.org/bindptr.html
     template<typename T>
     param_ref(std::unique_ptr<T> ptr)
-                    : impl_(variant2::in_place_index_t<7>{},
-                            std::unique_ptr<void, void(*)(void*)>(
-                                static_cast<void*>(ptr.release()),
-                                +[](void * ptr){delete static_cast<T*>(ptr);}),
-                                typeid(T).name())
+                    : impl_(variant2::in_place_index_t<8>{},
+                            std::make_pair(
+                                std::unique_ptr<void, void(*)(void*)>(
+                                    static_cast<void*>(ptr.release()),
+                                    +[](void * ptr){delete static_cast<T*>(ptr);}),
+                                typeid(T).name()))
     {
     }
 
     /// Bind pointer value with a function as deleter to the parameter. @see https://www.sqlite.org/bindptr.html
     template<typename T>
     param_ref(std::unique_ptr<T, void(*)(T*)> ptr)
-                    : impl_(variant2::in_place_index_t<7>{},
-                            std::unique_ptr<void, void(*)(void*)>(
-                                static_cast<void*>(ptr.release()),
-                                +[](void * ptr){delete static_cast<T*>(ptr);}),
-                             typeid(T).name())
+                    : impl_(variant2::in_place_index_t<8>{},
+                            std::make_pair(
+                                std::unique_ptr<void, void(*)(void*)>(
+                                    static_cast<void*>(ptr.release()),
+                                    +[](void * ptr){delete static_cast<T*>(ptr);}),
+                                typeid(T).name()))
     {
     }
 
@@ -107,11 +109,12 @@ struct param_ref
     param_ref(std::unique_ptr<T, Deleter> ptr,
               typename std::enable_if<std::is_empty<Deleter>::value &&
                                std::is_default_constructible<Deleter>::value, int>::type * = nullptr)
-                    : impl_(variant2::in_place_index_t<7>{},
-                            std::unique_ptr<void, void(*)(void*)>(
-                                static_cast<void*>(ptr.release()),
-                                +[](void * ptr){delete static_cast<T*>(ptr);}),
-                            typeid(T).name())
+                    : impl_(variant2::in_place_index_t<8>{},
+                            std::make_pair(
+                                std::unique_ptr<void, void(*)(void*)>(
+                                    static_cast<void*>(ptr.release()),
+                                    +[](void * ptr){delete static_cast<T*>(ptr);}),
+                                typeid(T).name()))
     {
     }
 #endif
