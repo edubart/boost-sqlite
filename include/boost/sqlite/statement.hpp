@@ -268,7 +268,7 @@ struct statement
     {
       BOOST_SQLITE_ASSIGN_EC(ec, cc);
       ei.set_message(sqlite3_errmsg(sqlite3_db_handle(impl_.get())));
-      }
+    }
     return !done_;
   }
 
@@ -366,6 +366,7 @@ struct statement
       system::error_code& ec,
       error_info& info)
     {
+      done_ = false;
       bind(std::forward<ArgRange>(params), ec, info);
       while (!ec && !done())
         step(ec, info);
@@ -390,6 +391,7 @@ struct statement
       system::error_code& ec,
       error_info& info)
     {
+      done_ = false;
       bind(std::move(params), ec, info);
       while (!ec && !done())
         step(ec, info);
