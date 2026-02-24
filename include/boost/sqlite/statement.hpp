@@ -463,7 +463,7 @@ struct statement
     void clear_bindings(system::error_code & ec, error_info & ei)
     {
       auto cc = sqlite3_clear_bindings(impl_.get());
-      if (cc != SQLITE_DONE)
+      if (cc != SQLITE_DONE && cc != SQLITE_OK)
       {
         BOOST_SQLITE_ASSIGN_EC(ec, cc);
         ei.set_message(sqlite3_errmsg(sqlite3_db_handle(impl_.get())));
@@ -483,7 +483,8 @@ struct statement
     void reset(system::error_code & ec, error_info & ei)
     {
       auto cc = sqlite3_reset(impl_.get());
-      if (cc != SQLITE_DONE)
+      done_ = false;
+      if (cc != SQLITE_DONE && cc != SQLITE_OK)
       {
         BOOST_SQLITE_ASSIGN_EC(ec, cc);
         ei.set_message(sqlite3_errmsg(sqlite3_db_handle(impl_.get())));
@@ -494,7 +495,7 @@ struct statement
     {
       system::error_code ec;
       error_info ei;
-      clear_bindings(ec, ei);
+      reset(ec, ei);
       if (ec)
         throw_exception(system::system_error(ec, ei.message()));
     }
@@ -721,13 +722,13 @@ struct statement_list
         stmt_ = sqlite::statement();
         tail_ = {};
     }
-    
+
   }
 
   bool done() const { return stmt_.handle() == nullptr; }
 
 
-  struct iterator 
+  struct iterator
   {
     using value_type = statement;
     using reference = statement&;
@@ -736,7 +737,7 @@ struct statement_list
     iterator() = default;
     iterator(statement_list & sl) : sl_(&sl) {}
 
-    bool operator != (iterator rhs ) 
+    bool operator != (iterator rhs )
     {
         return sl_ != rhs.sl_;
     }
@@ -749,7 +750,7 @@ struct statement_list
        if (sl_)
         sl_->prepare_next();
        return * this;
-    }    
+    }
 
    private:
     statement_list * sl_ = nullptr;
@@ -757,16 +758,15 @@ struct statement_list
 
   iterator begin() {return iterator(*this); }
   iterator   end() {return iterator(); }
-   
+
   statement_list(statement stmt, core::string_view tail) : stmt_(std::move(stmt)), tail_(tail) {}
   statement_list(statement_list &&) noexcept = default;
  private:
 
-  statement stmt_;    
+  statement stmt_;
   core::string_view tail_;
 };
 
 BOOST_SQLITE_END_NAMESPACE
 
 #endif //BOOST_SQLITE_STATEMENT_HPP
-
